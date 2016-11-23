@@ -2,8 +2,8 @@
 # Service version: 0.0.1-dev
 # apidoc:0.11.51 http://www.apidoc.me/gilt/akk-cluster-api-test/0.0.1-dev/play_2_x_routes
 
-GET     /session/:uuid/addresses           @controllers.Addresses.get(uuid: String)
-GET     /sessions/:uuid/order              @controllers.Orders.get(uuid: String)
-GET     /session/:uuid/payment_methods     @controllers.PaymentMethods.get(uuid: String)
-GET     /session                           @controllers.Session.get()
+GET     /session/:uuid/addresses           @controllers.Addresses.get(uuid: java.util.UUID)
+GET     /sessions/:uuid/order              @controllers.Orders.get(uuid: java.util.UUID)
+GET     /session/:uuid/payment_methods     @controllers.PaymentMethods.get(uuid: java.util.UUID)
+GET     /session                           @controllers.Sessions.get()
 GET     /healthcheck                       @controllers.Healthcheck.get()

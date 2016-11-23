@@ -1,15 +1,16 @@
 package controllers
 
 import java.util.UUID
-import javax.inject.Singleton
 
+import com.gilt.akk.cluster.api.test.v0.models.Order
+import com.gilt.akk.cluster.api.test.v0.models.json._
+import play.api.libs.json.Json
 import play.api.mvc.Action
 
-@Singleton
 class Orders extends BaseController {
 
-  def get(uuid:String) = Action {
-    Ok
+  def get(uuid: UUID) = Action {
+    Ok(Json.toJson(Order(uuid, uuid.toString)))
   }
 
 }

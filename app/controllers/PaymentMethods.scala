@@ -1,31 +1,46 @@
 package controllers
 
+import java.util.UUID
 
-import javax.inject.Singleton
-import actors.MainActorMessages.GetPaymentMethods
-import actors.Init
-import akka.util.Timeout
-import com.gilt.akk.cluster.api.test.v0.models.PaymentMethod
-import scala.concurrent.duration._
-
-import com.google.inject.Inject
-import play.api.libs.json._
-import com.gilt.akk.cluster.api.test.v0.models.json._
-
-import play.api.mvc._
+import actors.{MainActorMessages, SessionActorMessages}
+import akka.actor.ActorRef
 import akka.pattern.ask
-import scala.concurrent.ExecutionContext.Implicits.global
+import com.gilt.akk.cluster.api.test.v0.models.PaymentMethod
+import com.gilt.akk.cluster.api.test.v0.models.json._
+import play.api.libs.json.Json
+import play.api.mvc._
 
-@Singleton
-class PaymentMethods extends BaseController {
+import scala.concurrent.Future
 
-  implicit val timeout = Timeout(10.seconds)
+class PaymentMethods(mainActor: ActorRef) extends BaseController {
 
-  def get(uuid: String) = Action.async { request =>
-    val res = ask(Init.instance.mainActor, GetPaymentMethods).mapTo[Seq[PaymentMethod]]
+  def get(uuid: UUID) = Action.async {
 
-    res.map(paymentMethods => {
-      Results.Ok(Json.toJson(paymentMethods))
-    })
+
+    for {
+      actorRef <- ask(mainActor, MainActorMessages.FindActor(uuid)).mapTo[ActorRef]
+      response <- ask(actorRef, SessionActorMessages.GetPaymentMethods(uuid)).mapTo[Future[Seq[PaymentMethod]]]
+      seq <- response
+    } yield Ok(Json.toJson(seq))
+
+
+//    val actorRefFuture: Future[ActorRef] = ask(mainActor, MainActorMessages.FindActor(uuid)).mapTo[ActorRef]
+//    actorRefFuture flatMap { actorRef =>
+//      val response: Future[Seq[PaymentMethod]] = ask(actorRef, SessionActorMessages.GetPaymentMethods(uuid)).mapTo[Seq[PaymentMethod]]
+//      response map { seq => Ok(Json.toJson(seq)) } recover {
+//        case t =>
+//          InternalServerError(s"Boom! ${t.getMessage}")
+//      }
+//    } recover {
+    //      case t =>
+    //        InternalServerError(s"Boom! ${t.getMessage}")
+    //    }
+
+//    val response: Future[Seq[PaymentMethod]] = ask(mainActor, MainActorMessages.GetPaymentMethods(uuid)).mapTo[Seq[PaymentMethod]]
+//
+//    response map {
+//      seq => Ok(Json.toJson(seq))
+//    }
+
   }
 }

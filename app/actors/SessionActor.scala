@@ -2,51 +2,64 @@ package actors
 
 import java.util.UUID
 
-import akka.actor.Actor
-import akka.pattern.pipe
+import akka.actor.{ActorLogging, Actor}
 import com.gilt.akk.cluster.api.test.v0.models.{Address, PaymentMethod}
-import com.google.inject.Inject
+import scaldi.akka.AkkaInjectable
 import service.{AddressService, PaymentMethodService}
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Future}
 
-case class ResolveSession(uUID: UUID)
-case class PaymentMethods(uUID: UUID)
-case class AddressMethods(uUID: UUID)
+object SessionActorMessages {
+  case class ResolveSession(uuid: UUID)
+  case class GetPaymentMethods(uuid: UUID)
+  case class GetShippingAddresses(uuid: UUID)
+}
 
-class SessionActor @Inject() (paymentMethodService: PaymentMethodService, shippingAddressService: AddressService) extends Actor {
+class SessionActor(paymentMethodService: PaymentMethodService, shippingAddressService: AddressService) extends Actor with AkkaInjectable with ActorLogging {
 
   var paymentMethods: Option[Future[Seq[PaymentMethod]]] = None
   var shippingAddresses: Option[Future[Seq[Address]]] = None
 
-  override def receive : Receive = {
+  log.info(s"Session actor starting on ${self.path}")
+
+  implicit val ec: ExecutionContext = context.dispatcher
+
+  import SessionActorMessages._
+
+  override def receive: Receive = {
 
     case ResolveSession(uuid) =>
+      log.warning(s"Received SessionActorMessages.ResolveSession for $uuid")
       paymentMethods = Some(paymentMethodService.getAll())
       shippingAddresses = Some(shippingAddressService.getAll())
 
-    case PaymentMethods(uuid) =>
+    case GetPaymentMethods(uuid) =>
+      val caller = context.sender
+      log.warning(s"Received SessionActorMessages.GetPaymentMethods for $uuid")
       paymentMethods match {
         case Some(resolvedPaymentMethods) =>
-          println("Served payment methods from actor result")
-          resolvedPaymentMethods pipeTo sender
+          log.warning("Served payment methods from actor result")
+          log.warning(s"Sending response back to ${caller.path}")
+          caller ! resolvedPaymentMethods
 
         case None =>
-          println("Getting payment methods")
-          paymentMethodService.getAll() pipeTo sender
-
+          log.warning("Getting payment methods")
+          paymentMethods = Some(paymentMethodService.getAll())
+          caller ! paymentMethods.get
       }
 
-    case AddressMethods(uuid) =>
+    case GetShippingAddresses(uuid) =>
+      val caller = context.sender
+      log.warning(s"Received SessionActorMessages.GetShippingAddresses for $uuid")
       shippingAddresses match {
         case Some(resolvedShippingAddresses) =>
-          println("Served addresses from actor result")
-          resolvedShippingAddresses pipeTo sender
-        case None =>
-          println("Getting addresses")
-          shippingAddressService.getAll() pipeTo sender
-      }
+          log.warning("Served addresses from actor result")
+          caller ! resolvedShippingAddresses
 
+        case None =>
+          log.warning("Getting addresses")
+          shippingAddresses = Some(shippingAddressService.getAll())
+          caller ! shippingAddresses.get
+      }
   }
 }
